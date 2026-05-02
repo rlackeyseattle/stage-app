@@ -13,6 +13,9 @@ const PORT = process.env.PORT || 3001;
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '10mb' }));
 
+// ── Keep-Alive Endpoint ──────────────────────────────────────────────────────
+app.get('/api/ping', (req, res) => res.json({ status: 'alive', time: new Date().toISOString() }));
+
 // ── Persistent Local Database ────────────────────────────────────────────────
 const dbPath = path.join(__dirname, 'db.json');
 if (!fs.existsSync(dbPath)) {
