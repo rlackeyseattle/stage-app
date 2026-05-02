@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stage — Rocket Tree Labs</title>
+    <meta name="description" content="Stage: The professional chord chart teleprompter for live musicians. Auto-scroll, setlists, multi-device sync, and more.">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══ LIBRARY VIEW ══════════════════════════════════════════════════════════ -->
+<div id="libraryView" class="view active">
+    <header class="app-header">
+        <div class="brand-row">
+            <div class="brand-logo">🎸</div>
+            <div>
+                <div class="brand-name">STAGE</div>
+                <div class="brand-sub">by Rocket Tree Labs</div>
+            </div>
+        </div>
+        <nav class="lib-tabs">
+            <button class="lib-tab active" onclick="switchTab('charts')" id="tabCharts">Charts</button>
+            <button class="lib-tab" onclick="switchTab('setlists')" id="tabSetlists">Setlists</button>
+            <button class="lib-tab" onclick="switchTab('show')" id="tabShow">Show Runner</button>
+        </nav>
+        <div class="header-actions">
+            <div id="viewerPill" class="viewer-pill" style="display:none">
+                <span class="vp-dot"></span><span id="viewerCountLabel">0 viewers</span>
+            </div>
+            <button class="btn btn-ghost" onclick="openSettings()" title="App Settings">⚙️</button>
+            <button class="btn btn-primary" id="newBtn" onclick="handleNewBtn()">+ NEW CHART</button>
+        </div>
+    </header>
+
+    <!-- ── CHARTS TAB ────────────────────────────────────────────── -->
+    <div id="panelCharts" class="tab-panel active">
+        <div class="toolbar">
+            <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search title, artist, key, genre…" oninput="renderLibrary()">
+            </div>
+            <select id="filterGenre" class="filter-select" onchange="renderLibrary()">
+                <option value="">All Genres</option>
+            </select>
+            <select id="filterKey" class="filter-select" onchange="renderLibrary()">
+                <option value="">All Keys</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="bulkSelectMode()">Select</button>
+        </div>
+        <div class="library-header" id="libraryColHeader"></div>
+        <div class="chart-grid" id="chartList">
+            <div class="empty-state">Loading library…</div>
+        </div>
+    </div>
+
+    <!-- ── SETLISTS TAB ─────────────────────────────────────────── -->
+    <div id="panelSetlists" class="tab-panel">
+        <div class="toolbar">
+            <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="setlistSearch" placeholder="Search setlists…" oninput="renderSetlists()">
+            </div>
+        </div>
+        <div id="setlistGrid" class="setlist-grid">
+            <div class="empty-state">No setlists yet. Create one below.</div>
+        </div>
+        <div class="setlist-create-bar">
+            <input type="text" id="newSetlistName" placeholder="New setlist name (e.g. Top Hat — May 15)" style="flex:1">
+            <button class="btn btn-primary" onclick="createSetlist()">+ Create Setlist</button>
+        </div>
+    </div>
+
+    <!-- ── SHOW RUNNER TAB ─────────────────────────────────────── -->
+    <div id="panelShow" class="tab-panel">
+        <div id="showRunnerContent" class="show-runner-content">
+            <div class="empty-state show-no-setlist">
+                <div style="font-size:3rem">🎪</div>
+                <p>Select a setlist to run a show</p>
+                <button class="btn btn-primary" onclick="switchTab('setlists')">Browse Setlists</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ CHART EDITOR VIEW ═════════════════════════════════════════════════════ -->
+<div id="editorView" class="view hidden">
+    <header class="app-header editor-header">
+        <button class="btn btn-ghost" onclick="showLibrary()">← Back</button>
+        <div class="editor-title-wrap">
+            <input type="text" id="editTitle" placeholder="Song Title" class="editor-title-input">
+            <input type="text" id="editArtist" placeholder="Artist" class="editor-artist-input">
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-ghost" onclick="saveChart()">Save &amp; Stay</button>
+            <button class="btn btn-primary" onclick="saveAndLaunch()">Save &amp; Play ▶</button>
+        </div>
+    </header>
+
+    <div class="editor-body">
+        <div class="editor-meta">
+            <input type="hidden" id="editId">
+            <div class="meta-row">
+                <label>Key</label>
+                <input type="text" id="editKey" placeholder="G">
+            </div>
+            <div class="meta-row">
+                <label>BPM</label>
+                <input type="number" id="editBpm" placeholder="120">
+            </div>
+            <div class="meta-row">
+                <label>Genre</label>
+                <input type="text" id="editGenre" placeholder="Country Rock">
+            </div>
+            <div class="meta-row">
+                <label>Capo</label>
+                <input type="number" id="editCapo" placeholder="0" min="0" max="12">
+            </div>
+            <div style="margin-top:auto; padding-top:12px; border-top:1px solid var(--border)">
+                <p class="meta-hint">📎 Paste PDF text or chord chart below. Chords can be inline [G] or on their own line.</p>
+            </div>
+        </div>
+        <div class="editor-chart-area">
+            <div class="editor-toolbar">
+                <button class="btn btn-ghost btn-sm" onclick="insertChordPro()">[Chord] Helper</button>
+                <button class="btn btn-ghost btn-sm" onclick="detectKey()">🔑 Detect Key</button>
+                <button class="btn btn-ghost btn-sm" onclick="formatChart()">✨ Auto-Format</button>
+                <button class="btn btn-ghost btn-sm" id="chordHighlightToggle" onclick="toggleChordHighlight()">Highlight Chords</button>
+            </div>
+            <textarea id="editContent" class="chart-textarea" placeholder="Paste your chord chart here…
+
+Example (ChordPro format):
+[G]Hello [D]world
+[Em]This is a [C]song
+
+Example (chord lines):
+G  D  Em  C
+Hello world
+This is a song"></textarea>
+        </div>
+    </div>
+</div>
+
+<!-- ══ SETLIST EDITOR VIEW ═══════════════════════════════════════════════════ -->
+<div id="setlistEditorView" class="view hidden">
+    <header class="app-header editor-header">
+        <button class="btn btn-ghost" onclick="showLibrary()">← Back</button>
+        <div class="editor-title-wrap">
+            <input type="text" id="slEditName" placeholder="Setlist Name" class="editor-title-input">
+            <input type="text" id="slEditVenue" placeholder="Venue / Date" class="editor-artist-input">
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="saveSetlist()">Save Setlist</button>
+            <button class="btn btn-accent" onclick="launchShow()">▶ Run Show</button>
+        </div>
+    </header>
+    <div class="setlist-editor-body">
+        <!-- Setlist items (drag + drop) -->
+        <div class="sl-items-panel">
+            <div class="sl-items-header">
+                <span>SETLIST</span>
+                <span id="slDuration">—</span>
+            </div>
+            <div id="slItemsList" class="sl-items-list"></div>
+
+            <!-- Add controls -->
+            <div class="sl-add-bar">
+                <button class="sl-add-btn" onclick="slAddBreak()">+ Break</button>
+                <button class="sl-add-btn" onclick="slAddFiller()">+ Filler Music</button>
+                <button class="sl-add-btn" onclick="slAddNote()">+ Note</button>
+            </div>
+        </div>
+
+        <!-- Chart library picker -->
+        <div class="sl-library-panel">
+            <div class="sl-lib-header">Chart Library</div>
+            <div class="search-wrap" style="margin-bottom:8px">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="slLibSearch" placeholder="Search charts…" oninput="renderSlLibrary()">
+            </div>
+            <div id="slLibraryList" class="sl-library-list"></div>
+        </div>
+    </div>
+    <input type="hidden" id="slEditId">
+</div>
+
+<!-- ══ TELEPROMPTER / STAGE VIEW ════════════════════════════════════════════ -->
+<div id="teleprompterView" class="view hidden">
+
+    <!-- Song info badge -->
+    <div class="song-info-badge" id="songInfoBadge">
+        <span id="sib-title">—</span>
+        <span class="sib-sep">·</span>
+        <span id="sib-artist" class="sib-artist">—</span>
+        <span class="sib-sep">·</span>
+        <span id="sib-key" class="sib-key">—</span>
+    </div>
+
+    <!-- Setlist progress indicator -->
+    <div class="show-progress-bar" id="showProgressBar" style="display:none">
+        <div id="showProgressItems"></div>
+    </div>
+
+    <!-- Display Settings Panel -->
+    <div class="font-settings-panel" id="fontSettingsPanel">
+        <div class="fsp-header">
+            <span>🎨 Display Settings</span>
+            <div style="display:flex;gap:8px">
+                <button class="fsp-toggle" id="fspAutoSave" onclick="toggleFspAutoSave()" title="Auto-save these settings">💾 Auto-save</button>
+                <button class="btn btn-hud fsp-close" onclick="toggleFontSettings()">✕</button>
+            </div>
+        </div>
+        <div class="fsp-body">
+            <!-- LYRICS -->
+            <div class="fsp-section">
+                <h4>Lyrics</h4>
+                <div class="fsp-row">
+                    <label>Size</label>
+                    <input type="range" min="14" max="80" value="32" id="lyricSize" oninput="applyFontSettings()">
+                    <span id="lyricSizeVal">32px</span>
+                </div>
+                <div class="fsp-row">
+                    <label>Line H</label>
+                    <input type="range" min="1.0" max="3.0" step="0.1" value="1.6" id="lyricLineH" oninput="applyFontSettings()">
+                    <span id="lyricLineHVal">1.6</span>
+                </div>
+                <div class="fsp-row">
+                    <label>Style</label>
+                    <button class="fsp-toggle" id="lyricBold" onclick="toggleStyle('lyricBold')"><b>B</b></button>
+                    <button class="fsp-toggle" id="lyricItalic" onclick="toggleStyle('lyricItalic')"><i>I</i></button>
+                    <button class="fsp-toggle" id="lyricUnderline" onclick="toggleStyle('lyricUnderline')"><u>U</u></button>
+                </div>
+                <div class="fsp-row">
+                    <label>Color</label>
+                    <input type="color" id="lyricColor" value="#ffffff" oninput="applyFontSettings()">
+                </div>
+                <div class="fsp-row">
+                    <label>Bg</label>
+                    <input type="color" id="lyricBg" value="#000000" oninput="applyFontSettings()">
+                    <label class="fsp-check"><input type="checkbox" id="lyricBgOn" onchange="applyFontSettings()"> On</label>
+                </div>
+                <div class="fsp-row">
+                    <label>Font</label>
+                    <select id="lyricFont" class="hud-select fsp-select" onchange="applyFontSettings()">
+                        <option value="'Outfit', sans-serif">Outfit</option>
+                        <option value="'Inter', sans-serif">Inter</option>
+                        <option value="'Fira Code', monospace">Fira Code</option>
+                        <option value="Georgia, serif">Georgia</option>
+                        <option value="Arial, sans-serif">Arial</option>
+                        <option value="'Courier New', monospace">Courier</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- CHORDS -->
+            <div class="fsp-section">
+                <h4>Chords</h4>
+                <div class="fsp-row">
+                    <label>Size</label>
+                    <input type="range" min="10" max="70" value="26" id="chordSize" oninput="applyFontSettings()">
+                    <span id="chordSizeVal">26px</span>
+                </div>
+                <div class="fsp-row">
+                    <label>Style</label>
+                    <button class="fsp-toggle active" id="chordBold" onclick="toggleStyle('chordBold')"><b>B</b></button>
+                    <button class="fsp-toggle" id="chordItalic" onclick="toggleStyle('chordItalic')"><i>I</i></button>
+                    <button class="fsp-toggle" id="chordUnderline" onclick="toggleStyle('chordUnderline')"><u>U</u></button>
+                </div>
+                <div class="fsp-row">
+                    <label>Color</label>
+                    <input type="color" id="chordColor" value="#fde047" oninput="applyFontSettings()">
+                </div>
+                <div class="fsp-row">
+                    <label>Bg</label>
+                    <input type="color" id="chordBg" value="#000000" oninput="applyFontSettings()">
+                    <label class="fsp-check"><input type="checkbox" id="chordBgOn" onchange="applyFontSettings()"> On</label>
+                </div>
+                <div class="fsp-row">
+                    <label>Font</label>
+                    <select id="chordFont" class="hud-select fsp-select" onchange="applyFontSettings()">
+                        <option value="'Fira Code', monospace">Fira Code</option>
+                        <option value="'Outfit', sans-serif">Outfit</option>
+                        <option value="'Inter', sans-serif">Inter</option>
+                        <option value="Georgia, serif">Georgia</option>
+                        <option value="Arial, sans-serif">Arial</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- DISPLAY -->
+            <div class="fsp-section">
+                <h4>Display</h4>
+                <div class="fsp-row">
+                    <label>Padding</label>
+                    <input type="range" min="0" max="30" value="10" id="displayPadding" oninput="applyFontSettings()">
+                    <span id="displayPaddingVal">10%</span>
+                </div>
+                <div class="fsp-row" style="flex-wrap:wrap;gap:6px">
+                    <label style="width:100%;margin-bottom:4px">Theme</label>
+                    <button class="theme-swatch active" data-theme="theme-classic" onclick="changeTheme(this)">Dark</button>
+                    <button class="theme-swatch" data-theme="theme-light" onclick="changeTheme(this)">Light</button>
+                    <button class="theme-swatch" data-theme="theme-starwars" onclick="changeTheme(this)">Neon</button>
+                    <button class="theme-swatch" data-theme="theme-sunburst" onclick="changeTheme(this)">Sunburst</button>
+                    <button class="theme-swatch" data-theme="theme-midnight" onclick="changeTheme(this)">Midnight</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll Content -->
+    <div class="prompter-scroll-area" id="prompterScrollArea">
+        <div class="prompter-content" id="prompterContent"></div>
+        <div class="prompter-padding"></div>
+    </div>
+
+    <!-- Filler Overlay -->
+    <div id="fillerOverlay" class="filler-overlay" style="display:none">
+        <div class="filler-box">
+            <div class="filler-label">🎵 FILLER MUSIC</div>
+            <div id="fillerTitle" class="filler-title">—</div>
+            <div id="fillerYtContainer" style="display:none">
+                <iframe id="fillerYtFrame" width="480" height="270" frameborder="0" allow="autoplay" allowfullscreen></iframe>
+            </div>
+            <div id="fillerTimer" class="filler-timer"></div>
+            <button class="btn btn-primary" onclick="endFiller()">End Filler →</button>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div class="hud" id="hudControls">
+        <div class="hud-left">
+            <button class="btn btn-hud" onclick="exitStage()" title="Exit to Library">⬅</button>
+            <button class="btn btn-hud" onclick="editCurrentChart()" title="Edit Chart">✏️</button>
+            <button class="btn btn-hud" id="btnChordMode" onclick="toggleChordMode()" title="Chord display mode">🎼</button>
+            <button class="btn btn-hud" onclick="toggleFontSettings()" title="Display Settings">⚙️</button>
+            <div class="sync-panel">
+                <span class="status-dot" id="syncStatus"></span>
+                <select id="syncModeSelect" class="hud-select" title="Sync Mode" onchange="setSyncMode(this.value)">
+                    <option value="solo">SOLO</option>
+                    <option value="host">HOST</option>
+                    <option value="viewer">VIEWER</option>
+                </select>
+                <span id="hudViewerCount" class="viewer-count-hud"></span>
+            </div>
+        </div>
+
+        <div class="hud-center">
+            <div class="show-nav-controls" id="showNavControls" style="display:none">
+                <button class="btn btn-hud" onclick="showAdvance(-1)" title="Prev Song">◀◀</button>
+            </div>
+            <button class="btn btn-play" id="btnPlayPause" onclick="teleprompter.togglePlay()">▶ PLAY</button>
+            <div class="show-nav-controls" id="showNavControlsNext" style="display:none">
+                <button class="btn btn-hud" onclick="showAdvance(1)" title="Next Song">▶▶</button>
+            </div>
+            <div class="speed-control">
+                <span class="speed-label">SPEED</span>
+                <input type="range" min="1" max="300" value="50" step="1" id="speedSlider" oninput="teleprompter.setSpeed(this.value)" class="speed-slider">
+                <span class="speed-val" id="speedVal">50</span>
+            </div>
+        </div>
+
+        <div class="hud-right">
+            <div class="transpose-panel">
+                <div style="display:flex;flex-direction:column;align-items:center;">
+                    <span style="font-size:0.6rem;color:#94a3b8">CAPO</span>
+                    <select class="hud-select" id="capoSelect" title="Capo" onchange="chordEngine.setCapo(this.value)" style="padding:2px">
+                        <option value="0">0</option><option value="1">1</option><option value="2">2</option>
+                        <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                        <option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                        <option value="9">9</option><option value="10">10</option><option value="11">11</option>
+                        <option value="12">12</option>
+                    </select>
+                </div>
+                <button class="btn btn-hud" onclick="chordEngine.toggleNNS()" id="btnNNS" title="Nashville Number System">NNS</button>
+                <button class="btn btn-hud" onclick="chordEngine.transpose(-1)">−</button>
+                <div class="transpose-display">
+                    <span>KEY</span>
+                    <strong id="currentKeyDisplay">Orig</strong>
+                </div>
+                <button class="btn btn-hud" onclick="chordEngine.transpose(1)">+</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ SETTINGS MODAL ════════════════════════════════════════════════════════ -->
+<div id="settingsModal" class="modal-overlay" style="display:none" onclick="closeSettings(event)">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span>⚙️ Settings</span>
+            <button onclick="closeSettings()" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="setting-group">
+                <h4>Network</h4>
+                <p class="setting-desc">Share this URL with viewers (phones, tablets on stage):</p>
+                <div class="viewer-url-box" id="viewerUrlBox">Loading…</div>
+                <button class="btn btn-ghost btn-sm" onclick="copyViewerUrl()">Copy Viewer URL</button>
+            </div>
+            <div class="setting-group">
+                <h4>Default Display</h4>
+                <p class="setting-desc">These become your default preferences for new sessions.</p>
+                <label class="setting-toggle">
+                    <input type="checkbox" id="settingAutoScroll" checked>
+                    Remember scroll speed per-chart
+                </label>
+                <label class="setting-toggle">
+                    <input type="checkbox" id="settingShowProgress" checked>
+                    Show setlist progress bar on stage
+                </label>
+            </div>
+            <div class="setting-group">
+                <h4>Data</h4>
+                <button class="btn btn-ghost btn-sm" onclick="exportData()">📤 Export Library (JSON)</button>
+                <button class="btn btn-ghost btn-sm" onclick="importData()">📥 Import Library (JSON)</button>
+                <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImport(event)">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
